@@ -1,37 +1,40 @@
-import React, { useEffect, useState } from 'react'
+import React, {useEffect, useState} from 'react'
 import TodoHeader from './TodoHeader'
 import TodoMain from './TodoMain'
 import TodoInput from './TodoInput'
-import { useNavigate } from 'react-router-dom'
-import { Spinner } from 'reactstrap';
+import {useNavigate} from 'react-router-dom'
+import {Spinner} from 'reactstrap';
 
 import './scss/TodoTemplate.scss';
 
-import { API_BASE_URL as BASE, TODO } from '../../config/host-config';
-import { getLoginUserInfo } from '../../util/login-util'
+import {API_BASE_URL as BASE, TODO, USER} from '../../config/host-config';
+import {getLoginUserInfo, setLoginUserInfo} from '../../util/login-util'
+import login from "../user/Login";
 
 const TodoTemplate = () => {
+
+    // 로그인 인증토큰 얻어오기
+    const [token, setToken] = useState(getLoginUserInfo().token);
+    // todos배열을 상태관리
+    const [todos, setTodos] = useState([]);
 
     // 로딩 상태값 관리
     const [loading, setLoading] = useState(true);
 
     const redirection = useNavigate();
 
-    // 로그인 인증토큰 얻어오기
-    const { token } = getLoginUserInfo();
 
     // 요청 헤더 설정
     const requestHeader = {
-      'content-type': 'application/json',
-      'Authorization': 'Bearer ' + token
+        'content-type': 'application/json',
+        'Authorization': 'Bearer ' + token
     };
-    
+
 
     // 서버에 할일 목록(json)을 요청해서 받아와야 함
     const API_BASE_URL = BASE + TODO;
-    
-    // todos배열을 상태관리
-    const [todos, setTodos] = useState([]);
+    const API_USER_URL = BASE + USER;
+
 
     // id값 시퀀스 생성 함수
     // const makeNewId = () => {
@@ -44,7 +47,7 @@ const TodoTemplate = () => {
         // console.log('할일 정보 in TodoTemplate: ', todoText);
 
         const newTodo = {
-          title: todoText
+            title: todoText
         };
 
         // todos.push(newTodo);
@@ -58,122 +61,154 @@ const TodoTemplate = () => {
         // copyTodos.push(newTodo);
 
         fetch(API_BASE_URL, {
-          method: 'POST',
-          headers: requestHeader,
-          body: JSON.stringify(newTodo)
+            method: 'POST',
+            headers: requestHeader,
+            body: JSON.stringify(newTodo)
         })
-        .then(res => res.json())
-        .then(json => {
-          setTodos(json.todos);
-        });
+            .then(res => {
+                if (res.status === 200) return res.json();
+                else if (res.status === 401) {
+                    alert('일반 회원은 일정 등록이 5개로 제한됩니다 ㅜㅜ');
+                }
+            })
+            .then(json => {
+                json && setTodos(json.todos);
+            });
     };
 
 
     // 할 일 삭제 처리 함수
     const removeTodo = id => {
-      // console.log(`삭제대상 id: ${id}`);
-      // setTodos(todos.filter(todo => todo.id !== id));
+        // console.log(`삭제대상 id: ${id}`);
+        // setTodos(todos.filter(todo => todo.id !== id));
 
-      fetch(`${API_BASE_URL}/${id}`, {
-        method: 'DELETE',
-        headers: requestHeader
-      })
-      .then(res => res.json())
-      .then(json => {
-        setTodos(json.todos);
-      });
+        fetch(`${API_BASE_URL}/${id}`, {
+            method: 'DELETE',
+            headers: requestHeader
+        })
+            .then(res => res.json())
+            .then(json => {
+                setTodos(json.todos);
+            });
     };
 
     // 할 일 체크 처리 함수
     const checkTodo = (id, done) => {
 
-      fetch(API_BASE_URL, {
-        method: 'PUT',
-        headers: requestHeader,
-        body: JSON.stringify({
-           done: !done,
-           id: id
+        fetch(API_BASE_URL, {
+            method: 'PUT',
+            headers: requestHeader,
+            body: JSON.stringify({
+                done: !done,
+                id: id
+            })
         })
-      })
-      .then(res => res.json())
-      .then(json => setTodos(json.todos)); 
+            .then(res => res.json())
+            .then(json => setTodos(json.todos));
 
-      // console.log(`체크한 Todo id: ${id}`);
+        // console.log(`체크한 Todo id: ${id}`);
 
-      // const copyTodos = [...todos];
-      // for (const cTodo of copyTodos) {
-      //   if (cTodo.id === id) {
-      //     cTodo.done = !cTodo.done;
-      //   }
-      // }
-      // setTodos(copyTodos);
+        // const copyTodos = [...todos];
+        // for (const cTodo of copyTodos) {
+        //   if (cTodo.id === id) {
+        //     cTodo.done = !cTodo.done;
+        //   }
+        // }
+        // setTodos(copyTodos);
 
-      // setTodos(todos.map(todo => todo.id === id ? {...todo, done: !todo.done} : todo));
+        // setTodos(todos.map(todo => todo.id === id ? {...todo, done: !todo.done} : todo));
 
     };
 
     // 체크가 안된 할 일의 개수 카운트하기
     const countRestTodo = () => todos.filter(todo => !todo.done).length;
 
+    const fetchPromote = async () => {
+        const res = await fetch(API_USER_URL + '/promote',
+            {
+                method: 'PUT',
+                headers: requestHeader
+            });
+
+        if (res.status === 403) { // 이미 프리미엄이거나 관리자 회원이면
+            alert('이미 프리미엄 회원이거나 관리자입니다.');
+        } else if (res.status === 200) {
+            const json = await res.json();
+            console.log(json);
+            // 토큰 데이터 갱신
+            setLoginUserInfo(json);
+            setToken(json.token);
+        }
+
+
+    }
+
+    // 프리미엄등급 승격처리
+    const promote = () => {
+        fetchPromote();
+    };
 
     useEffect(() => {
-      
-      fetch(API_BASE_URL, {
-        method: 'GET',
-        headers: requestHeader
-      })
-        .then(res => {
-          if (res.status === 200) return res.json();
-          else if (res.status === 403) {
-            alert('로그인이 필요한 서비스입니다.');
-            redirection('/login');
-            return;
-            
-          } else {
-            alert('서버가 불안정합니다');
-          }
+
+        fetch(API_BASE_URL, {
+            method: 'GET',
+            headers: requestHeader
         })
-        .then(json => {
-          // console.log(json.todos);
+            .then(res => {
+                if (res.status === 200) return res.json();
+                else if (res.status === 403) {
+                    alert('로그인이 필요한 서비스입니다.');
+                    redirection('/login');
+                    return;
 
-          if (!json) return;
+                } else {
+                    alert('서버가 불안정합니다');
+                }
+            })
+            .then(json => {
+                // console.log(json.todos);
 
-          setTodos(json.todos);
+                if (!json) return;
 
-          // 로딩 완료 처리
-          setLoading(false);
-        });
+                setTodos(json.todos);
+
+                // 로딩 완료 처리
+                setLoading(false);
+            });
 
     }, []);
 
-  // 로딩이 끝난 후 보여줄 컴포넌트
-  const loadEndedPage = (
-    <div className='TodoTemplate'>
-        <TodoHeader count={countRestTodo} />
-        <TodoMain 
-          todoList={todos} 
-          remove={removeTodo} 
-          check={checkTodo} 
-        />
-        <TodoInput addTodo={addTodo} />   
-    </div>
-  );
+    // 로딩이 끝난 후 보여줄 컴포넌트
+    const loadEndedPage = (
+        <div className='TodoTemplate'>
+            <TodoHeader
+                count={countRestTodo}
+                promote={promote}
+            />
+            <TodoMain
+                todoList={todos}
+                remove={removeTodo}
+                check={checkTodo}
+            />
+            <TodoInput addTodo={addTodo}/>
+        </div>
+    );
 
-  // 로딩중일 때 보여줄 컴포넌트
-  const loadingPage = (
-    <div className='loading'>
-      <Spinner color='danger'>
-        loading...
-      </Spinner>
-    </div>
-  );
+    // 로딩중일 때 보여줄 컴포넌트
+    const loadingPage = (
+        <div className='loading'>
+            <Spinner color='danger'>
+                loading...
+            </Spinner>
+        </div>
+    );
 
 
-  return (
-    <>
-        { loading ? loadingPage : loadEndedPage }
-    </>
-  )
+    return (
+        <>
+            {loading ? loadingPage : loadEndedPage}
+        </>
+    )
 }
 
 export default TodoTemplate
