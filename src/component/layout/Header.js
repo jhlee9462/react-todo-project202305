@@ -1,33 +1,32 @@
 import React, {useEffect, useState} from 'react'
 import {
     AppBar, Toolbar, Grid,
-    Typography, Button
+    Typography
 } from "@mui/material";
-
 
 import './Header.css';
 import {Link, useNavigate} from 'react-router-dom';
 
 import {isLogin, getLoginUserInfo} from '../../util/login-util';
-import {API_BASE_URL, USER} from "../../config/host-config";
+import {API_BASE_URL, USER} from '../../config/host-config';
 
 const Header = () => {
 
-    const profileRequestURL = API_BASE_URL + USER + '/load-profile';
+    const profileRequestURL = `${API_BASE_URL}${USER}/load-profile`;
 
     const redirection = useNavigate();
 
     // 프로필 이미지 url 상태변수
     const [profileUrl, setProfileUrl] = useState(null);
 
-//   const [userInfo, setUserInfo] = useState(getLoginUserInfo());
-
-//   const { token, username, role } = userInfo;
+    // 로그인 상태를 나타내는 상태변수를 추가
+    const [isLoggedIn, setIsLoggedIn] = useState(isLogin());
 
     // 로그아웃 핸들러
     const logoutHandler = e => {
 
         localStorage.clear();
+        setProfileUrl(null);
         redirection('/login');
     };
 
@@ -42,34 +41,33 @@ const Header = () => {
          리렌더링함
     */
 
-    const fetchProfileImage = async () => {
-        const res = await fetch(profileRequestURL,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + getLoginUserInfo().token
-                }
-            }
-        );
-
-        if (res.status === 200) {
-            // 서버에서 직렬화된 이미지가 응답된다.
-            const profileBlob = await res.blob();
-            // 해당 이미지를 imgUrl로 변경
-            const imgUrl = window.URL.createObjectURL(profileBlob);
-
-            setProfileUrl(imgUrl);
-        } else {
-            const err = await res.text();
-            setProfileUrl(null);
-        }
-    };
+    // 로그인 상태 변화를 감지하는 useEffect를 추가
+    useEffect(() => {
+        setIsLoggedIn(isLogin());
+    }, [isLogin()]);
 
     useEffect(() => {
 
-        fetchProfileImage();
+        isLoggedIn &&
+        (async () => {
+            const res = await fetch(profileRequestURL, {
+                method: 'GET',
+                headers: {'Authorization': 'Bearer ' + getLoginUserInfo().token}
+            });
 
-    }, []);
+            if (res.status === 200) {
+                // 서버에서 직렬화된 이미지가 응답된다.
+                const profileBlob = await res.blob();
+                // 해당 이미지를 imgUrl로 변경
+                const imgUrl = window.URL.createObjectURL(profileBlob);
+                setProfileUrl(imgUrl);
+            } else {
+                const err = await res.text();
+                setProfileUrl(null);
+            }
+        })();
+
+    }, [isLoggedIn]);
 
     return (
         <AppBar position="fixed" style={{
@@ -94,7 +92,7 @@ const Header = () => {
                                 의 할일
                             </Typography>
                             <img
-                                src={profileUrl || require('../../assets/img/annonymous.png')}
+                                src={profileUrl ? profileUrl : require('../../assets/img/annonymous.png')}
                                 alt='프사프사'
                                 style={
                                     {
