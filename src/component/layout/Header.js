@@ -12,7 +12,8 @@ import {API_BASE_URL, USER} from '../../config/host-config';
 
 const Header = () => {
 
-    const profileRequestURL = `${API_BASE_URL}${USER}/load-profile`;
+    // const profileRequestURL = `${API_BASE_URL}${USER}/load-profile`;
+    const profileRequestURL = `${API_BASE_URL}${USER}/load-s3`;
 
     const redirection = useNavigate();
 
