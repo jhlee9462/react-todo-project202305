@@ -57,11 +57,11 @@ const Header = () => {
             });
 
             if (res.status === 200) {
-                // 서버에서 직렬화된 이미지가 응답된다.
-                const profileBlob = await res.blob();
-                // 해당 이미지를 imgUrl로 변경
-                const imgUrl = window.URL.createObjectURL(profileBlob);
-                setProfileUrl(imgUrl);
+                // // 서버에서 직렬화된 이미지가 응답된다.
+                // const profileBlob = await res.blob();
+                // // 해당 이미지를 imgUrl로 변경
+                // const imgUrl = window.URL.createObjectURL(profileBlob);
+                setProfileUrl(await res.text());
             } else {
                 const err = await res.text();
                 setProfileUrl(null);
